@@ -1,0 +1,23 @@
+; zone file for XYZ.TLD
+; Change XYZ.TLD to suit you and change the hosts (currently dyn.XYZ.TLD (tag D)  and laptop.XYZ.TLD (tag L))
+; Name the file xyz.tld.dns.template  (using your own domain instead of xyz.tld)
+$TTL 360 ; default TTL for zone
+$ORIGIN wd5gnr.com.
+@  360       IN      SOA   ns1.XYZ.TLD. admin@XYZ.TLD. (
+!:                       $SERIAL ; serial number
+                        3m       ; refresh
+                        180       ; retry
+                        1209600    ; expire
+                        3m       ; negative
+                        )
+@             IN      A       158.69.212.64
+@             IN      NS      ns1
+@	      IN      NS      ns2
+ns1           IN      A       158.69.212.64
+ns2           IN      A       158.69.212.64
+@             IN      MX  10  mail
+www           IN      A       158.69.212.64
+D:dyn	      IN      A	      $DYNIP
+*.dyn	      IN      CNAME   dyn
+L:laptop      IN      A	      $DYNIP
+*.laptop      IN      CNAME laptop

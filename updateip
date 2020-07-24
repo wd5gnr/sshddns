@@ -1,0 +1,47 @@
+#!/bin/bash
+if [ $# != 4 ]
+then
+    echo Usage updateip - zone name template_tag  or updateip ip zone name template_tag
+    echo Example: updateip - mydomain.com dyn D
+  exit 1
+fi
+IP="$1"
+ZONENAME="$2"
+NAME="$3"
+ID="$4"
+LOCKFILE=/var/lock/LOCK-UPDATEIP
+TIMEOUT=120    # seconds to wait for lock
+if [ "$IP" == "-" ]
+then
+    if [ -z "$SSH_CLIENT" ]
+    then
+	echo "Not called remotely"
+        exit 1
+    else
+       IP=`echo "$SSH_CLIENT"|cut -d ' ' -f 1`
+    fi
+fi    
+TEMPLATE="$ZONENAME.dns.template"
+ZONE="forward.$ZONENAME"
+CIP=`getent hosts "$NAME.$ZONENAME" | cut -d ' ' -f 1`
+if [ "$IP" == "$CIP" ]
+then
+    echo No update required $IP - $CIP
+    exit 0
+else
+    touch $LOCKFILE   # create lock file if not already there
+    {
+	if flock -w $TIMEOUT 88
+	   then
+	       # These probably fail if ZONE is in another directory :(
+	       awk -v SERIAL=`date -u +1%j%H%M` -v DYNIP="$IP" -v ID="$ID" '  ARGIND==1 && match($0,"^(!:)|(" ID ":)") { gsub(/^.*:/,""); gsub(/\$SERIAL/,SERIAL); gsub(/\$DYNIP/,DYNIP); newstring[FNR]=$0;  next; }  ARGIND==2 { if (newstring[FNR]=="") print $0; else print newstring[FNR]; }' "$TEMPLATE"  "$ZONE"  >"/tmp/$ZONE$$"
+	       mv "/tmp/$ZONE$$" "$ZONE"
+	else
+	    echo Failed to acquire lock
+	    exit 1
+	fi
+    } 88<$LOCKFILE   # this will release the lock when file is closed
+# Don't forget you need to set the user up to allow this with no passwd, look at /etc/sudoers.d/91-dyndns
+    sudo rndc reload $ZONENAME
+    exit 0
+fi
